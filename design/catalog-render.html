@@ -1,34 +1,111 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><title>Moon Woven catalog capture</title><style>body{margin:0;background:#f5f2e9;font:14px sans-serif;display:flex}figure{margin:0;width:33.333%}img{display:block;width:100%}figcaption{text-align:center}</style></head><body>
-<script type="module">
-import * as THREE from 'three';
-import { createDreamcatcher } from '/src/model.js';
-import { createSurfaceTextures } from '/src/materials.js';
-import { createStudioEnvironment } from '/src/studio-lighting.js';
-import { presets } from '/src/config.js';
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-renderer.setSize(720, 900);renderer.setPixelRatio(1);
-renderer.outputColorSpace = THREE.SRGBColorSpace;renderer.toneMapping = THREE.ACESFilmicToneMapping;renderer.toneMappingExposure = 1;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-const scene = new THREE.Scene();
-const environment = createStudioEnvironment(renderer);scene.environment = environment.texture;
-scene.environmentIntensity=.85;
-scene.add(new THREE.HemisphereLight(0xfff4e5, 0x555143, .42));
-const key = new THREE.DirectionalLight(0xfff0df, 2.15);key.position.set(-3.5, 5, 6);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.normalBias=.004;key.shadow.bias=-.00008;scene.add(key);
-const fill = new THREE.DirectionalLight(0xeff3f4, .3);fill.position.set(4, .8, 4);scene.add(fill);
-const textures = createSurfaceTextures();
-for (const [slug, name] of [['moon-woven','Moon Woven'],['desert-sun','Desert Sun'],['lavender-haze','Lavender Haze']]) {
-  scene.background = new THREE.Color({'moon-woven':'#66775c','desert-sun':'#b7a084','lavender-haze':'#a29ba6'}[slug]);
-  const model = createDreamcatcher(presets[name], textures);scene.add(model);
-  const bounds = new THREE.Box3().setFromObject(model), size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
-  const height = Math.max(size.y * 1.15, size.x / .8 * 1.18);
-  const camera = new THREE.OrthographicCamera(-height*.4,height*.4,height*.5,-height*.5,.1,50);
-  camera.position.copy(center).add(new THREE.Vector3(.15,0,12));camera.lookAt(center);camera.updateProjectionMatrix();
-  renderer.render(scene,camera);
-  const figure=document.createElement('figure'), image=new Image(), caption=document.createElement('figcaption');
-  image.src=renderer.domElement.toDataURL('image/webp', .92);image.alt=name;image.dataset.slug=slug;caption.textContent=name;
-  const download=document.createElement('a');download.href=image.src;download.download=slug+'.webp';download.textContent='Download '+name;
-  figure.append(image,caption,download);document.body.append(figure);
-  scene.remove(model);model.userData.dispose();
-}
-textures.dispose();environment.dispose();renderer.dispose();
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forest Echos catalog capture</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #f5f2e9; color: #303d30; font: 14px/1.5 sans-serif; }
+    h1 { font: 32px/1.1 Georgia, serif; margin: 0 0 8px; }
+    p { margin: 0 0 24px; }
+    main { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+    figure { margin: 0; }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { font-weight: 600; margin-top: 10px; }
+    a { display: inline-block; color: inherit; padding: 8px 0; }
+    @media (max-width: 800px) { main { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <h1>Forest Echos</h1>
+  <p id="status" role="status">Rendering the four original designs…</p>
+  <main aria-label="Collection thumbnails"></main>
+  <script type="module">
+    import * as THREE from 'three';
+    import { createDreamcatcher } from '/src/model.js';
+    import { createSurfaceTextures } from '/src/materials.js';
+    import { createStudioEnvironment } from '/src/studio-lighting.js';
+    import { presets } from '/src/config.js';
+
+    const pieces = [
+      { slug: 'willow-weave', name: 'Willow Weave', background: '#66775c' },
+      { slug: 'sage-haven', name: 'Sage Haven', background: '#69735e' },
+      { slug: 'amber-hush', name: 'Amber Hush', background: '#8e7860' },
+      { slug: 'moon-woven', name: 'Moon Woven', background: '#657669' },
+    ];
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setSize(720, 900);
+    renderer.setPixelRatio(1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const environment = createStudioEnvironment(renderer);
+    scene.environment = environment.texture;
+    scene.environmentIntensity = .85;
+    scene.add(new THREE.HemisphereLight(0xfff4e5, 0x555143, .42));
+    const key = new THREE.DirectionalLight(0xfff0df, 2.15);
+    key.position.set(-3.5, 5, 6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.normalBias = .004;
+    key.shadow.bias = -.00008;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xeff3f4, .3);
+    fill.position.set(4, .8, 4);
+    scene.add(fill);
+    const textures = createSurfaceTextures();
+
+    try {
+      for (const { slug, name, background } of pieces) {
+        scene.background = new THREE.Color(background);
+        const model = createDreamcatcher(presets[name], textures);
+        scene.add(model);
+        try {
+          const bounds = new THREE.Box3().setFromObject(model);
+          const size = bounds.getSize(new THREE.Vector3());
+          const center = bounds.getCenter(new THREE.Vector3());
+          const height = Math.max(size.y * 1.22, size.x / .8 * 1.22);
+          const camera = new THREE.OrthographicCamera(-height * .4, height * .4, height * .5, -height * .5, .1, 50);
+          camera.position.copy(center).add(new THREE.Vector3(.15, 0, 12));
+          camera.lookAt(center);
+          camera.updateProjectionMatrix();
+          renderer.render(scene, camera);
+
+          const figure = document.createElement('figure');
+          const image = new Image();
+          image.src = renderer.domElement.toDataURL('image/webp', .94);
+          image.alt = name + ' — original design';
+          image.width = 720;
+          image.height = 900;
+          image.dataset.slug = slug;
+          const caption = document.createElement('figcaption');
+          caption.textContent = name;
+          const download = document.createElement('a');
+          download.href = image.src;
+          download.download = slug + '.webp';
+          download.textContent = 'Download ' + name;
+          figure.append(image, caption, download);
+          document.querySelector('main').append(figure);
+        } finally {
+          scene.remove(model);
+          model.userData.dispose();
+        }
+      }
+      document.querySelector('#status').textContent = 'Four originals · 720 × 900 WebP · Save to public/images/';
+      document.body.dataset.ready = 'true';
+    } catch (error) {
+      document.querySelector('#status').textContent = 'Rendering failed: ' + error.message;
+      document.body.dataset.ready = 'error';
+      throw error;
+    } finally {
+      textures.dispose();
+      environment.dispose();
+      renderer.dispose();
+    }
+  </script>
+</body>
+</html>

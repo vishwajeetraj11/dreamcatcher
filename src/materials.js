@@ -63,7 +63,7 @@ export function createSurfaceTextures() {
   }, true);
   return { bark, jute, cotton, stone, endGrain, dispose() { [bark, jute, cotton, stone, endGrain].forEach(t => t.dispose()); } };
 }
-function cloudyCrystal(params, { scale = 1.7, density = 0.7, fracture = 0.3, milk = '#f4e8d8' } = {}) {
+export function cloudyCrystal(params, { scale = 1.7, density = 0.7, fracture = 0.3, milk = '#f4e8d8' } = {}) {
   const material = new THREE.MeshPhysicalMaterial(params);
   // Sample a mineral field beneath the surface along the viewing ray. The pattern
   // stays inside each stone as it rotates, rather than reading as painted speckles.

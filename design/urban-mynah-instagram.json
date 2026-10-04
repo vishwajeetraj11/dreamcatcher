@@ -1,0 +1,58 @@
+{
+  "verifiedOn": "2026-10-04",
+  "profile": {
+    "url": "https://www.instagram.com/urbanmynah/",
+    "displayName": "Urban Mynah",
+    "bio": [
+      "Handcrafted home décor & wall art",
+      "Made by hand __Made for home"
+    ]
+  },
+  "introduction": {
+    "sourceUrl": "https://www.instagram.com/urbanmynah/p/DbaJ_mQCMj_/",
+    "verifiedBy": "Visible pinned post caption on the official profile",
+    "founderName": "Sriwani",
+    "opening": "Hello, I'm Sriwani",
+    "summary": "Sriwani introduces Urban Mynah as thoughtfully handcrafted home décor inspired by nature, created to bring warmth, calm, and character into the home. She describes dream catchers and wall décor assembled with knots, beads, crystals, and thread."
+  },
+  "firstReel": {
+    "sourceUrl": "https://www.instagram.com/urbanmynah/reel/DbaIrRTCD98/",
+    "id": "DbaIrRTCD98",
+    "published": "20260730",
+    "publisher": "Urban Mynah (@urbanmynah)",
+    "verification": "Pinned first reel on official profile, visually verified as the original black-line animation of a person working at a computer. The on-screen text begins: The screen had all his attention.",
+    "caption": "When the screen gets louder than your thoughts \n...its time to look up🎐\n\nSometimes,  all it takes is one peaceful corner.\n\n#bohodecor #DreamCatcher #wallhangingdecor\n#handmade #digitaldetox",
+    "durationSeconds": 20.875011,
+    "width": 720,
+    "height": 1280,
+    "frameRate": 6,
+    "original": "/media/urban-mynah/first-reel-original.mp4",
+    "webVideo": "/media/urban-mynah/first-reel.mp4",
+    "poster": "/media/urban-mynah/first-reel-poster.jpg",
+    "instagramCover": "/media/urban-mynah/first-reel.jpg",
+    "processing": "Original Instagram VP9 video and AAC audio downloaded with yt-dlp; merged without transcoding into the original MP4. Web copy transcodes only the video to H.264 at CRF 18 with yuv420p and faststart; AAC audio copied unchanged. Poster is an unedited frame at 2 seconds. All original frame dimensions, artwork, timing, text, attribution marks and audio are retained.",
+    "ownership": "Original media belongs to Urban Mynah; included at the user’s explicit request for their brand homepage."
+  },
+  "files": {
+    "first-reel-original.mp4": {
+      "url": "/media/urban-mynah/first-reel-original.mp4",
+      "bytes": 613348,
+      "sha256": "7cbdb95312ca28efb6696b284c1a6cc5eb0221100a2cb89e2990629e157fdafa"
+    },
+    "first-reel.jpg": {
+      "url": "/media/urban-mynah/first-reel.jpg",
+      "bytes": 78748,
+      "sha256": "db97e2f69810965541922b7a0852e4589890db70e340322b04fd390e43e3650a"
+    },
+    "first-reel-poster.jpg": {
+      "url": "/media/urban-mynah/first-reel-poster.jpg",
+      "bytes": 59184,
+      "sha256": "440f92e89007fe9cba223573e0c1d1747b8abcdd25bb1b721266167e41288de3"
+    },
+    "first-reel.mp4": {
+      "url": "/media/urban-mynah/first-reel.mp4",
+      "bytes": 964302,
+      "sha256": "00e117c7b040cf7df02744dff1049dd47f68bde1e083b40146149335620fe87f"
+    }
+  }
+}

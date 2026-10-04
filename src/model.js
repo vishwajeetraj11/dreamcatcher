@@ -1,14 +1,17 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Builder, branchGeometry, addCrystal, lines } from './model-construction.js';
+import { createForestDreamcatcher } from './forest-model.js';
 import { createMaterials, randomSequence } from './materials.js';
 import { pebbleGeometry, pendantGeometry } from './mineral-geometry.js';
 import { hangingPivot, attachBreezeRig } from './breeze.js';
+import { lowerFramePoint } from './forest-craft.js';
+import { collectionDesigns, normalizeConfig } from './config.js';
 
 const v = (x, y, z = 0) => new THREE.Vector3(x, y, z);
-const Z = v(0, 0, 1), Y = v(0, 1, 0);
+const Z = v(0, 0, 1);
 const TAU = Math.PI * 2;
 
-function framePaths(shape) {
+export function framePaths(shape) {
   let arc;
   if (shape === 'moon') {
     // The reference is a bent branch with projecting ends, not a geometrical D hoop.
@@ -17,6 +20,15 @@ function framePaths(shape) {
       v(-0.66, 1.31, -0.03), v(-0.94, 0.72, 0.02), v(-1.07, 0.20, 0.03),
       v(-0.94, -0.25, -0.01), v(-0.48, -0.56, 0.035), v(0.09, -0.78, 0.00), v(0.67, -0.89, 0.025)
     ]);
+  } else if (shape === 'pentagon') {
+    // Straight sides keep the requested silhouette geometric. The original
+    // Moon wrap and cotton web are constructed around this same perimeter.
+    const vertices = Array.from({ length: 5 }, (_, i) => {
+      const angle = i / 5 * TAU;
+      return v(-Math.sin(angle) * 1.30, Math.cos(angle) * 1.30 + 0.59);
+    });
+    arc = new THREE.CurvePath();
+    vertices.forEach((point, i) => arc.add(new THREE.LineCurve3(point, vertices[(i + 1) % 5])));
   } else {
     const points = Array.from({ length: 80 }, (_, i) => {
       const a = i / 80 * TAU;
@@ -40,72 +52,23 @@ function framePaths(shape) {
     p.x -= Math.sin((t - 0.7) / 0.3 * Math.PI) * 0.075;
     return p;
   }
-  return { arc, spine, top, bottom, boundary };
+  const lowerVertices = shape === 'moon' ? null : Array.from({ length: 320 }, (_, i) => boundary(i / 320));
+  const width = lowerVertices ? Math.min(-Math.min(...lowerVertices.map(p => p.x)), Math.max(...lowerVertices.map(p => p.x))) * 0.72 : 0;
+  const lowerAttachment = f => shape === 'moon'
+    ? arc.getPointAt(0.67 + f * 0.28)
+    : lowerFramePoint(lowerVertices, (f * 2 - 1) * width);
+  const suspension = shape === 'moon' ? arc.getPointAt(0.14) : lowerVertices.reduce((highest, point) => point.y > highest.y ? point : highest).clone();
+  return { arc, spine, top, bottom, boundary, lowerAttachment, suspension };
 }
 
-// Merge the opaque details by material: thousands of fibers remain a few draw calls.
-class Builder {
-  constructor(group) { this.group = group; this.batches = new Map(); }
-  add(geometry, material, position = v(0, 0), scale = [1, 1, 1], rotation = new THREE.Euler()) {
-    geometry.applyMatrix4(new THREE.Matrix4().compose(position, new THREE.Quaternion().setFromEuler(rotation), new THREE.Vector3(...scale)));
-    const list = this.batches.get(material) || []; list.push(geometry); this.batches.set(material, list);
-  }
-  tube(points, radius, material, segments = 32, radial = 6, closed = false) {
-    const curve = points.isCurve ? points : new THREE.CatmullRomCurve3(points, closed, 'centripetal');
-    this.add(new THREE.TubeGeometry(curve, segments, radius, radial, closed), material);
-  }
-  thread(a, b, material, radius = 0.0065, sag = 0) {
-    if (sag) { this.tube([a, a.clone().lerp(b, 0.5).add(v(0, -sag, sag * 0.3)), b], radius, material, 5, 5); return; }
-    const geometry = new THREE.CylinderGeometry(radius, radius, a.distanceTo(b), 5);
-    const q = new THREE.Quaternion().setFromUnitVectors(Y, b.clone().sub(a).normalize());
-    this.add(geometry, material, a.clone().lerp(b, 0.5), [1, 1, 1], new THREE.Euler().setFromQuaternion(q));
-  }
-  finish() {
-    for (const [material, list] of this.batches) {
-      const combined = mergeGeometries(list, false);
-      list.forEach(g => g.dispose());
-      const mesh = new THREE.Mesh(combined, material);
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      this.group.add(mesh);
-    }
-    this.batches.clear();
-  }
-}
-function branchGeometry(curve, radius, segments = 100) {
-  const geometry = new THREE.TubeGeometry(curve, segments, radius, 12, false);
-  const positions = geometry.attributes.position;
-  for (let i = 0; i <= segments; i++) {
-    const center = curve.getPointAt(i / segments);
-    const width = 0.90 + 0.11 * Math.sin(i * 0.31) + 0.055 * Math.cos(i * 0.83);
-    for (let j = 0; j <= 12; j++) {
-      const index = i * 13 + j;
-      const p = v(positions.getX(index), positions.getY(index), positions.getZ(index));
-      p.sub(center).multiplyScalar(width * (1 + Math.sin(j / 12 * TAU * 3 + i * 0.42) * 0.055)).add(center);
-      positions.setXYZ(index, p.x, p.y, p.z);
-    }
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
-function addCrystal(group, geometry, material, pos, scale, rotation) {
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.copy(pos); mesh.scale.set(...scale); mesh.rotation.set(...rotation);
-  // Transparent stones do not cast solid black shadows, but still receive wood shadows.
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-function lines(group, coordinates, material) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(coordinates, 3));
-  group.add(new THREE.LineSegments(geometry, material));
-}
 export function createDreamcatcher(config, textures) {
-  const model = new THREE.Group(); model.name = 'Handcrafted dream catcher';
+  config = normalizeConfig(config);
+  if (collectionDesigns[config.design].forest) return createForestDreamcatcher(config, textures);
+  const model = new THREE.Group(); model.name = 'Forest Echos — Moon Woven';
   let mat = createMaterials(config, textures);
   const build = new Builder(model);
   const rnd = randomSequence(741), paths = framePaths(config.shape);
-  const { arc, spine, boundary } = paths;
+  const { arc, spine, boundary, lowerAttachment, suspension } = paths;
   const closed = config.shape !== 'moon';
   const frameRadius = 0.09;
   build.add(branchGeometry(arc, frameRadius, 180), mat.bark);
@@ -243,15 +206,15 @@ export function createDreamcatcher(config, textures) {
   let pendantPivot = null;
   for (let i = 0; i < config.strands; i++) {
     const f = config.strands === 1 ? 0.5 : i / (config.strands - 1);
-    const anchor = config.shape === 'moon' ? arc.getPointAt(0.67 + f * 0.28) : boundary(config.shape === 'circle' ? 0.64 + f * 0.23 : 0.36 + f * 0.28);
+    const anchor = lowerAttachment(f);
     anchor.z += 0.035;
-    const strandLength = (config.shape === 'moon' ? 1.35 + f * 0.59 : 1.26 + Math.sin(f * Math.PI) * 0.56) * config.length;
+    const strandLength = (1.35 + f * 0.59) * config.length;
     const { pivot, contents } = hangingPivot(model, anchor, `hanging-strand-${i + 1}`);
     const strandBuild = new Builder(contents);
     movingStrands.push({ pivot, length: strandLength });
     const bottom = anchor.clone().add(v((rnd() - 0.5) * 0.07, -strandLength, 0.02));
     strandBuild.thread(anchor, bottom, mat.cotton, 0.0075);
-    const beadCount = config.shape === 'moon' ? Math.round(3 + f) : 3 + Math.round(Math.sin(f * Math.PI));
+    const beadCount = Math.round(3 + f);
     for (let j = 0; j < beadCount; j++) {
       const p = anchor.clone().lerp(bottom, (j + 0.52) / beadCount);
       const size = 0.076 + rnd() * 0.012;
@@ -322,9 +285,9 @@ export function createDreamcatcher(config, textures) {
     const crystalTop = cap.clone().add(v(0, -0.041, 0));
     const pendant = addCrystal(contents, pendantGeometry(), mat.pink, crystalTop, [1, 1, 1], [0, 0, 0]);
     pendant.name = 'rose-quartz-pendant';
+    pendant.userData.mineral = 'rose-quartz';
     build.finish();
   }
-  const suspension = config.shape === 'moon' ? arc.getPointAt(0.14) : boundary(config.shape === 'circle' ? 0.25 : 0);
   build.tube([suspension, suspension.clone().add(v(-0.07, 0.21, -0.02)), suspension.clone().add(v(-0.01, 0.31, -0.02)), suspension.clone().add(v(0.065, 0.20, -0.02)), suspension], 0.008, mat.cotton, 35, 6);
   build.finish();
   attachBreezeRig(model, suspension.clone().add(v(-0.01, 0.31, -0.02)), movingStrands, pendantPivot);

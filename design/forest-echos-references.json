@@ -1,0 +1,32 @@
+{
+  "collection": "Forest Echos",
+  "reviewedAt": "2026-10-04",
+  "sources": [
+    {
+      "design": "willow",
+      "name": "Willow Weave",
+      "url": "https://www.instagram.com/p/DbqL1rwCApS/",
+      "observedOriginal": "Crossed triangular branches, cotton web, garnet drop, wooden charms, beads and tassels."
+    },
+    {
+      "design": "sage",
+      "name": "Sage Haven",
+      "url": "https://www.instagram.com/urbanmynah/p/Db8ZwfUknBn/",
+      "detailUrl": "https://www.instagram.com/urbanmynah/p/DcG5J4REiMH/",
+      "observedOriginal": "Crossed pentagonal branches, an open cotton web and a single central bead strand with an amber-colored pendant."
+    },
+    {
+      "design": "amber",
+      "name": "Amber Hush",
+      "url": "https://www.instagram.com/urbanmynah/p/DdEuZY0gsMo/",
+      "observedOriginal": "Two projecting wrapped horizontal rails, two slender vertical posts, a rectangular cotton web and three hanging macrame leaves."
+    },
+    {
+      "design": "moon",
+      "name": "Moon Woven",
+      "url": "https://www.instagram.com/urbanmynah/p/DdqLDu8kjOg/",
+      "observedOriginal": "Jute-wrapped crescent, dotted straight branch, cotton web, pink pendant near the upper right and three hanging bead strands."
+    }
+  ],
+  "customizationAuthority": "User instructions and confirmation on 2026-10-04. Per-design shape rules are defined in src/config.js."
+}

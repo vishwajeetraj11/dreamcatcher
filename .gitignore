@@ -2,3 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+# Downloaded research media stays local and out of the application bundle.
+references/urban-mynah/*.mp4
+references/urban-mynah/*.info.json
+references/urban-mynah/images.json

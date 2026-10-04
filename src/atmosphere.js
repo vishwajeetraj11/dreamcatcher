@@ -88,6 +88,7 @@ export function createAtmosphere(scene, renderer) {
       background.dispose();
       environments.forEach(environment => environment.dispose());
       sun.shadow.map?.dispose();
+      sun.shadow.mapPass?.dispose();
       scene.remove(ambient, sun, fill, rim);
     }
   };

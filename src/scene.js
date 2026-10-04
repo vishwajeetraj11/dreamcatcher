@@ -5,6 +5,7 @@ import { createDreamcatcher } from './model.js';
 import { createAtmosphere } from './atmosphere.js';
 import { applyBreeze } from './breeze.js';
 import { fitPerspectiveBounds, OVERVIEW_DIRECTION } from './camera-framing.js';
+import { collectionDesigns } from './config.js';
 
 export function createStudio(container, initialConfig, onMotionPreferenceChange = () => {}) {
   const scene = new THREE.Scene();
@@ -29,6 +30,11 @@ export function createStudio(container, initialConfig, onMotionPreferenceChange 
 
   const atmosphere = createAtmosphere(scene, renderer);
   const { sun } = atmosphere;
+  const shadowWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ color: '#293322', opacity: 0.10, depthWrite: false }));
+  shadowWall.position.z = -0.34;
+  shadowWall.receiveShadow = true;
+  shadowWall.visible = false;
+  scene.add(shadowWall);
 
   const textures = createSurfaceTextures();
   let model, disposed = false, rotate = false, pendantFocused = false;
@@ -88,7 +94,7 @@ export function createStudio(container, initialConfig, onMotionPreferenceChange 
     controls.update(); keepWholePieceVisible();
   }
   function focusPendant() {
-    const pendant = model?.getObjectByName('rose-quartz-pendant');
+    const pendant = (model?.getObjectByName('feature-pendant') || model?.getObjectByName('rose-quartz-pendant'));
     if (!pendant) {
       if (pendantFocused) resetView();
       return false;
@@ -115,13 +121,23 @@ export function createStudio(container, initialConfig, onMotionPreferenceChange 
     Object.assign(sun.shadow.camera, {
       left: bounds.min.x - 0.3, right: bounds.max.x + 0.3,
       bottom: bounds.min.y - 0.3, top: bounds.max.y + 0.3,
-      near: Math.max(0.1, -bounds.max.z - 0.5), far: -bounds.min.z + 0.5
+      near: Math.max(0.1, -bounds.max.z - 0.5), far: -bounds.min.z + (shadowWall.visible ? 1.2 : 0.5)
     });
     sun.shadow.camera.updateProjectionMatrix();
     sun.shadow.needsUpdate = true;
   }
   function rebuild(config) {
-    const geometryKeys = ['shape', 'pattern', 'strands', 'length', 'pendant', 'pebbles'];
+    shadowWall.visible = collectionDesigns[config.design]?.forest ?? false;
+    const shadowType = shadowWall.visible ? THREE.VSMShadowMap : THREE.PCFSoftShadowMap;
+    if (renderer.shadowMap.type !== shadowType) {
+      renderer.shadowMap.type = shadowType;
+      sun.shadow.map?.dispose(); sun.shadow.map = null;
+      sun.shadow.mapPass?.dispose(); sun.shadow.mapPass = null;
+      sun.shadow.radius = shadowWall.visible ? 4 : 3;
+      sun.shadow.blurSamples = 8;
+      renderer.shadowMap.needsUpdate = true;
+    }
+    const geometryKeys = ['design', 'shape', 'pattern', 'strands', 'length', 'pendant', 'pebbles', 'feathers'];
     if (model && geometryKeys.every(key => model.userData.config[key] === config[key])) {
       model.userData.updateMaterials(config);
       return;
@@ -186,7 +202,8 @@ export function createStudio(container, initialConfig, onMotionPreferenceChange 
     dispose() {
       disposed = true; observer.disconnect(); controls.dispose(); renderer.setAnimationLoop(null);
       motionPreference.removeEventListener('change', updateMotionPreference);
-      model.userData.dispose(); textures.dispose(); atmosphere.dispose(); renderer.dispose();
+      model.userData.dispose(); textures.dispose(); atmosphere.dispose();
+      shadowWall.geometry.dispose(); shadowWall.material.dispose(); renderer.dispose();
     }
   };
 }
