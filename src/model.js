@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createMaterials, randomSequence } from './materials.js';
+import { pebbleGeometry, pendantGeometry } from './mineral-geometry.js';
 
 const v = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const Z = v(0, 0, 1), Y = v(0, 1, 0);
@@ -85,19 +86,6 @@ function branchGeometry(curve, radius, segments = 100) {
   geometry.computeVertexNormals();
   return geometry;
 }
-function pebbleGeometry(seed) {
-  const base = new THREE.IcosahedronGeometry(1, 3);
-  const geometry = mergeVertices(base); base.dispose();
-  const positions = geometry.attributes.position;
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
-    const warp = 1 + Math.sin(x * 3.2 + seed) * Math.sin(y * 4.3 + seed) * 0.19 + Math.cos(z * 5 + x * 2 - seed) * 0.055;
-    const soften = coordinate => Math.sign(coordinate) * Math.pow(Math.abs(coordinate), 0.78);
-    positions.setXYZ(i, soften(x) * warp, soften(y) * warp, soften(z) * warp);
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
 function addCrystal(group, geometry, material, pos, scale, rotation) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(pos); mesh.scale.set(...scale); mesh.rotation.set(...rotation);
@@ -130,6 +118,10 @@ export function createDreamcatcher(config, textures) {
   }
   if (!closed) { cutEnd(arc, 0, 0.086); cutEnd(arc, 1, 0.087); cutEnd(spine, 0, 0.060); cutEnd(spine, 1, 0.076); }
 
+  // The compressed underwrap fills the gaps between coils. Individual twisted
+  // plies sit on it, as in tightly wound jute, instead of reading as a spring.
+  const wrappedArc = new THREE.CatmullRomCurve3(Array.from({ length: 180 }, (_, i) => arc.getPointAt(closed ? i / 180 : 0.026 + i / 179 * 0.948)), closed);
+  build.add(branchGeometry(wrappedArc, 0.101, 180), mat.wrap);
   // Uneven three-ply jute, with loose overwraps and individual flyaway fibers.
   const steps = 3600, turns = closed ? 228 : 182;
   const fuzz = [];
@@ -139,30 +131,35 @@ export function createDreamcatcher(config, textures) {
     const center = arc.getPointAt(t), tangent = arc.getTangentAt(t);
     const normal = v(-tangent.y, tangent.x).normalize();
     const binormal = tangent.clone().cross(normal).normalize();
-    const angle = i / steps * turns * TAU + Math.sin(i / steps * 71) * 0.45;
-    const radius = frameRadius + 0.013 + Math.sin(t * 37) * 0.009 + Math.sin(t * 127) * 0.004;
+    const phase = i / steps;
+    const angle = phase * turns * TAU + Math.sin(phase * 17) * 3.1 + Math.sin(phase * 91) * 1.2 + Math.sin(phase * 241) * 0.27;
+    const radius = frameRadius + 0.016 + Math.sin(t * 37) * 0.009 + Math.sin(t * 127) * 0.004 + Math.sin(t * 317) * 0.002;
     const radial = normal.clone().multiplyScalar(Math.cos(angle)).addScaledVector(binormal, Math.sin(angle));
     const around = normal.clone().multiplyScalar(-Math.sin(angle)).addScaledVector(binormal, Math.cos(angle));
     const centerRope = center.clone().addScaledVector(radial, radius);
     for (let ply = 0; ply < 3; ply++) {
-      const twist = i / steps * turns * 7.5 + ply * TAU / 3;
+      const twist = phase * turns * 7.5 + Math.sin(phase * 41) * 1.3 + ply * TAU / 3;
       strandPaths[ply].push(centerRope.clone().addScaledVector(radial, Math.cos(twist) * 0.010).addScaledVector(around, Math.sin(twist) * 0.010));
     }
     if (i % 3 === 0) {
       const root = centerRope.clone().addScaledVector(radial, 0.015);
-      const tip = root.clone().addScaledVector(radial, 0.018 + rnd() * 0.047).addScaledVector(tangent, (rnd() - 0.5) * 0.065);
-      fuzz.push(...root.toArray(), ...tip.toArray());
+      const flyaway = rnd() < 0.14;
+      const lift = flyaway ? 0.025 + rnd() * 0.032 : 0.004 + rnd() * 0.012;
+      const tip = root.clone().addScaledVector(radial, lift).addScaledVector(tangent, (rnd() - 0.5) * 0.10).addScaledVector(around, (rnd() - 0.5) * 0.042);
+      const mid = root.clone().lerp(tip, 0.5).addScaledVector(radial, flyaway ? 0.015 : 0.004);
+      fuzz.push(...root.toArray(), ...mid.toArray(), ...mid.toArray(), ...tip.toArray());
     }
   }
   strandPaths.forEach((points, i) => build.tube(points, i === 2 ? 0.008 : 0.011, i === 1 ? mat.ropeLight : mat.rope, steps, 5));
-  for (let w = 0; w < 2; w++) {
+  for (let w = 0; w < 4; w++) {
     const points = Array.from({ length: 850 }, (_, i) => {
       const t = 0.035 + i / 849 * 0.935;
       const center = arc.getPointAt(t), tangent = arc.getTangentAt(t), normal = v(-tangent.y, tangent.x).normalize();
-      const angle = i / 849 * TAU * (w === 0 ? 22 : -17) + w;
-      return center.addScaledVector(normal, Math.cos(angle) * 0.126).add(v(0, 0, Math.sin(angle) * 0.126));
+      const angle = i / 849 * TAU * [22, -17, 37, -29][w] + w * 2.1 + Math.sin(t * 49) * 0.64;
+      const radius = 0.126 + Math.sin(t * 37) * 0.008 + Math.sin(t * 127 + w) * 0.004;
+      return center.addScaledVector(normal, Math.cos(angle) * radius).add(v(0, 0, Math.sin(angle) * radius));
     });
-    build.tube(points, 0.007, mat.ropeLight, 1000, 5);
+    build.tube(points, w < 2 ? 0.006 : 0.0045, w % 2 ? mat.rope : mat.ropeLight, 1000, 5);
   }
   lines(model, fuzz, mat.fuzz);
 
@@ -272,28 +269,49 @@ export function createDreamcatcher(config, textures) {
   }
   if (config.pendant) {
     const anchor = config.shape === 'moon' ? arc.getPointAt(0.022).add(v(0, -0.055, 0.0)) : previous.reduce((top, node) => node.y > top.y ? node : top).clone();
-    build.thread(anchor, anchor.clone().add(v(0, -0.04, 0)), mat.cotton, 0.006);
-    build.add(new THREE.TorusGeometry(0.038, 0.008, 7, 18), mat.silver, anchor.clone().add(v(0, -0.072, 0)));
-    build.add(new THREE.TorusGeometry(0.029, 0.007, 7, 18), mat.silver, anchor.clone().add(v(0, -0.123, 0)), [1, 1.35, 1], new THREE.Euler(0, 0.6, 0));
+    // The cotton loop holds a pair of intersecting oval jump rings. Each ring
+    // passes through the next, rather than floating on top of a closed cap.
+    build.tube([anchor.clone().add(v(-0.018, 0.02, 0)), anchor.clone().add(v(-0.015, -0.063, 0.018)), anchor.clone().add(v(0.015, -0.061, 0.022)), anchor.clone().add(v(0.018, 0.02, 0))], 0.0055, mat.cotton, 22, 5);
+    build.add(new THREE.TorusGeometry(0.024, 0.0048, 8, 28), mat.silver, anchor.clone().add(v(0, -0.075, 0.01)), [0.82, 1.6, 1], new THREE.Euler(0, 0.24, 0));
+    build.add(new THREE.TorusGeometry(0.024, 0.0053, 8, 28), mat.silver, anchor.clone().add(v(0, -0.124, 0.01)), [0.82, 1.42, 1], new THREE.Euler(0, 1.24, 0));
     const cap = anchor.clone().add(v(0, -0.207, 0.0));
-    build.add(new THREE.CylinderGeometry(0.105, 0.106, 0.115, 6), mat.silver, cap);
-    for (const dy of [-0.051, 0.051]) build.add(new THREE.TorusGeometry(0.106, 0.008, 6, 6), mat.silverDark, cap.clone().add(v(0, dy, 0)), [1, 1, 1], new THREE.Euler(Math.PI / 2, 0, 0));
+    const capGeometry = new THREE.CylinderGeometry(0.110, 0.112, 0.105, 6).toNonIndexed();
+    capGeometry.computeVertexNormals();
+    capGeometry.setIndex(Array.from({ length: capGeometry.attributes.position.count }, (_, i) => i));
+    build.add(capGeometry, mat.silver, cap);
+    // Low soldered bail joins the lower jump ring to the cap's top plate.
+    build.add(new THREE.TorusGeometry(0.016, 0.0048, 7, 22), mat.silver, cap.clone().add(v(0, 0.061, 0)), [1, 1.16, 1]);
+    for (const dy of [-0.052, -0.039, 0.049]) {
+      const edge = Array.from({ length: 37 }, (_, j) => {
+        const face = Math.floor(j / 6), t = j % 6 / 6;
+        const a = Math.PI / 6 + face / 6 * TAU, b = a + TAU / 6;
+        return cap.clone().add(v(THREE.MathUtils.lerp(Math.cos(a), Math.cos(b), t) * 0.113, dy, THREE.MathUtils.lerp(Math.sin(a), Math.sin(b), t) * 0.113));
+      });
+      build.tube(edge, dy === -0.039 ? 0.002 : 0.0037, dy === -0.039 ? mat.silverDark : mat.silver, 80, 5);
+    }
+    // Stamped three-arch motif with recessed oxidized grooves and a fine
+    // raised rim; dimensions follow the broad, shallow cap in the photograph.
     for (let i = 0; i < 6; i++) {
-      const a = i / 6 * TAU + Math.PI / 6;
-      const p = cap.clone().add(v(Math.sin(a) * 0.093, 0, Math.cos(a) * 0.093));
-      build.add(new THREE.TorusGeometry(0.023, 0.003, 4, 12, Math.PI * 1.5), mat.silverDark, p, [1, 0.72, 1], new THREE.Euler(0, a, 0.2));
+      const a = i / 6 * TAU;
+      const n = v(Math.cos(a), 0, Math.sin(a)), tangent = v(-Math.sin(a), 0, Math.cos(a));
+      const facePoint = (x, y, depth = 0) => cap.clone().addScaledVector(n, 0.0975 + depth).addScaledVector(tangent, x).add(v(0, y, 0));
+      for (let arch = 0; arch < 3; arch++) {
+        const width = 0.037 - arch * 0.009;
+        const curve = Array.from({ length: 17 }, (_, j) => {
+          const t = j / 16 * Math.PI;
+          return facePoint(Math.cos(t) * width, -0.018 + arch * 0.0015 + Math.sin(t) * (0.042 - arch * 0.011));
+        });
+        build.tube(curve, 0.0026, mat.silverDark, 22, 5);
+        build.tube(curve.map(p => p.clone().add(v(0, 0.004, 0)).addScaledVector(n, 0.0012)), 0.0018, mat.silver, 22, 5);
+      }
+      for (const side of [-1, 1]) {
+        build.add(new THREE.SphereGeometry(0.004, 7, 5), mat.silver, facePoint(side * 0.041, -0.025, 0.001), [1, 1.2, 1]);
+        build.tube([facePoint(side * 0.044, 0.008), facePoint(side * 0.038, 0.004), facePoint(side * 0.042, -0.007)], 0.002, mat.silverDark, 9, 4);
+      }
     }
-    const crystalCenter = cap.clone().add(v(0, -0.32, 0));
-    const hex = new THREE.CylinderGeometry(0.101, 0.099, 0.52, 6, 1, false);
-    addCrystal(model, hex, mat.pink, crystalCenter, [1, 1, 1], [0, Math.PI / 6, 0]);
-    const tip = new THREE.ConeGeometry(0.099, 0.155, 6);
-    addCrystal(model, tip, mat.pink, crystalCenter.clone().add(v(0, -0.337, 0)), [1, 1, 1], [Math.PI, Math.PI / 6, 0]);
-    const inclusions = [];
-    for (let i = 0; i < 13; i++) {
-      const y = (rnd() - 0.5) * 0.44, x = (rnd() - 0.5) * 0.10;
-      inclusions.push(crystalCenter.x + x, crystalCenter.y + y, crystalCenter.z + 0.045, crystalCenter.x + x + (rnd() - 0.5) * 0.07, crystalCenter.y + y + 0.015 + rnd() * 0.07, crystalCenter.z + 0.045);
-    }
-    lines(model, inclusions, mat.inclusion);
+    const crystalTop = cap.clone().add(v(0, -0.041, 0));
+    const pendant = addCrystal(model, pendantGeometry(), mat.pink, crystalTop, [1, 1, 1], [0, 0, 0]);
+    pendant.name = 'rose-quartz-pendant';
   }
   const suspension = config.shape === 'moon' ? arc.getPointAt(0.14) : boundary(config.shape === 'circle' ? 0.25 : 0);
   build.tube([suspension, suspension.clone().add(v(-0.07, 0.21, -0.02)), suspension.clone().add(v(-0.01, 0.31, -0.02)), suspension.clone().add(v(0.065, 0.20, -0.02)), suspension], 0.008, mat.cotton, 35, 6);

@@ -16,3 +16,8 @@
 .view-tools .tool-divider{background:#a8b5994a}
 .preview .icon-button:hover,.preview .icon-button[aria-pressed=true]{background:#c4d1b62b;color:#fff6df}
 .gesture-hint{color:#c0cbb0}
+.preview-actions{display:flex;align-items:center;gap:13px;pointer-events:auto;color:#e2e6d6}
+.detail-button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #bdc8aa66;border-radius:4px;font-size:10px;line-height:1.2;background:#35432b26;color:#e9e9d9;transition:background .2s}
+.detail-button .icon{width:15px;height:15px}.detail-button:hover,.detail-button[aria-pressed=true]{background:#c8d1b22b}.detail-button:disabled{opacity:.35}
+.detail-view .scene-caption{display:none}
+@media(max-width:620px){.preview-actions{gap:5px}.detail-button{font-size:9px;padding:7px}.preview-label{letter-spacing:.8px}}

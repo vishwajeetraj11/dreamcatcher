@@ -47,3 +47,26 @@ test('color changes reuse geometry and leave shared textures available', () => {
   textures.dispose();
   assert.equal(textureDisposals, 4);
 });
+
+test('pendant is a single closed beveled crystal and can be removed', () => {
+  const textures = createSurfaceTextures();
+  const model = createDreamcatcher(defaults, textures);
+  const pendant = model.getObjectByName('rose-quartz-pendant');
+  assert.ok(pendant?.isMesh, 'detail view has a stable mesh to focus');
+  const geometry = pendant.geometry;
+  const positions = geometry.attributes.position;
+  const keys = Array.from({ length: positions.count }, (_, i) => [positions.getX(i), positions.getY(i), positions.getZ(i)].map(value => value.toFixed(5)).join(','));
+  const indices = geometry.index ? [...geometry.index.array] : Array.from({ length: positions.count }, (_, i) => i);
+  const edges = new Map();
+  for (let i = 0; i < indices.length; i += 3) {
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const edge = [keys[indices[i + a]], keys[indices[i + b]]].sort().join('|');
+      edges.set(edge, (edges.get(edge) || 0) + 1);
+    }
+  }
+  assert.ok([...edges.values()].every(count => count === 2), 'body and point form a watertight surface without an internal seam');
+  model.userData.dispose();
+  const without = createDreamcatcher({ ...defaults, pendant: false }, textures);
+  assert.equal(without.getObjectByName('rose-quartz-pendant'), undefined);
+  without.userData.dispose(); textures.dispose();
+});

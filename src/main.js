@@ -8,6 +8,7 @@ const icons = {
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
   reset: '<path d="M4 9a8 8 0 1 1 0 7M4 3v6h6"/>',
   rotate: '<path d="M20 8c-2-5-14-5-16 0s2 9 8 9h8m-4-4 4 4-4 4"/>',
+  inspect: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5m-13-10h5m-2.5-2.5v5"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
   minus: '<path d="M5 12h14"/>',
   download: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
@@ -23,7 +24,7 @@ function shapeIcon(shape) {
   const path = shape === 'moon' ? '<path d="M34 5C0 5 0 42 34 42ZM34 5 14 24l20 18M8 15l26 18M8 32 34 14"/>' : shape === 'circle' ? '<circle cx="24" cy="23" r="18"/><path d="m24 5 11 32L6 17h36L13 37Z"/>' : '<path d="M24 3C20 12 7 21 7 30a17 17 0 0 0 34 0c0-9-13-18-17-27ZM24 3v44M9 24l28 15M39 24 11 39"/>';
   return `<svg viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">${path}<path d="M17 44v7m7-6v10m7-11v7"/></svg>`;
 }
-let config = { ...defaults }, activePreset = 'Moon Woven', activeTab = 'design', rotating = false, studio;
+let config = { ...defaults }, activePreset = 'Moon Woven', activeTab = 'design', rotating = false, pendantDetail = false, studio;
 let saved = [];
 try { saved = readSaved(localStorage); } catch { /* Browser storage may be unavailable. */ }
 const app = document.querySelector('#app');
@@ -43,7 +44,7 @@ app.innerHTML = `
       <div class="save-area"><button class="primary-button" id="save-design">${icon('bookmark')} Save my design ${icon('arrow')}</button><p>Your little creation, saved on this device.</p></div>
     </aside>
     <div class="preview">
-      <div class="preview-top"><div class="preview-label"><span class="live-dot"></span> LIVE 3D PREVIEW</div><button class="icon-button" id="take-photo" aria-label="Download preview image" title="Download preview image">${icon('download')}</button></div>
+      <div class="preview-top"><div class="preview-label"><span class="live-dot"></span> LIVE 3D PREVIEW</div><div class="preview-actions"><button class="detail-button" id="inspect-pendant" aria-pressed="false">${icon('inspect')}<span>Inspect pendant</span></button><button class="icon-button" id="take-photo" aria-label="Download preview image" title="Download preview image">${icon('download')}</button></div></div>
       <div class="scene" id="scene"></div>
       <div class="scene-caption"><span class="tiny-star">✧</span><div>Thoughtfully chosen.<br><em>Uniquely yours.</em></div></div>
       <div class="preview-bottom"><div class="object-name"><span id="object-title">Moon Woven</span><span id="object-subtitle">NATURAL JUTE · GREEN AVENTURINE</span></div><div class="view-tools"><button id="auto-rotate" class="icon-button" aria-label="Auto rotate" aria-pressed="false" title="Auto rotate">${icon('rotate')}</button><span class="tool-divider"></span><button id="zoom-out" class="icon-button" aria-label="Zoom out">${icon('minus')}</button><button id="zoom-in" class="icon-button" aria-label="Zoom in">${icon('plus')}</button><span class="tool-divider"></span><button id="reset-view" class="icon-button" aria-label="Reset camera" title="Reset camera">${icon('reset')}</button></div></div>
@@ -76,12 +77,26 @@ function renderPanel() {
     <section class="control-section"><div class="section-label"><h3><span>04</span> The finishing touches</h3></div><div class="field-title range-title"><label for="strands">Hanging strands</label><output for="strands" id="strands-value">${config.strands}</output></div><input id="strands" type="range" min="1" max="7" step="1" value="${config.strands}" style="--progress:${(config.strands - 1) / 6 * 100}%"><div class="range-ends"><span>Less</span><span>More</span></div><div class="field-title"><label for="length">Strand length</label><output id="length-value" for="length">${Math.round(config.length * 100)}%</output></div><input id="length" type="range" min="70" max="150" step="5" value="${Math.round(config.length * 100)}" style="--progress:${(config.length - 0.7) / 0.8 * 100}%"><label class="toggle-row"><span>Rose quartz pendant</span><input type="checkbox" id="pendant" ${config.pendant ? 'checked' : ''}><span class="toggle" aria-hidden="true"></span></label><label class="toggle-row"><span>Clear quartz accents</span><input type="checkbox" id="pebbles" ${config.pebbles ? 'checked' : ''}><span class="toggle" aria-hidden="true"></span></label></section>`;
 }
 function updateMeta() {
-  document.querySelector('#object-title').textContent = activePreset || 'Your custom creation';
-  document.querySelector('#object-subtitle').textContent = `${palettes.frame[config.frame].name} · ${palettes.stone[config.stone].name}`;
+  if (!config.pendant) pendantDetail = false;
+  syncViewState();
   document.querySelectorAll('[data-preset]').forEach(button => {
     const selected = button.dataset.preset === activePreset;
     button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', selected);
   });
+}
+function syncViewState() {
+  const button = document.querySelector('#inspect-pendant');
+  button.disabled = !config.pendant || !studio;
+  button.setAttribute('aria-pressed', pendantDetail);
+  button.querySelector('span').textContent = pendantDetail ? 'View whole piece' : 'Inspect pendant';
+  document.querySelector('.preview').classList.toggle('detail-view', pendantDetail);
+  document.querySelector('#object-title').textContent = pendantDetail ? 'Rose quartz' : activePreset || 'Your custom creation';
+  document.querySelector('#object-subtitle').textContent = pendantDetail ? 'Facets, inclusions & silver' : `${palettes.frame[config.frame].name} · ${palettes.stone[config.stone].name}`;
+}
+function setDetailView(enabled) {
+  if (enabled) pendantDetail = Boolean(studio?.focusPendant());
+  else { studio?.resetView(); pendantDetail = false; }
+  syncViewState();
 }
 function updateConfig(key, value, rerender = true) {
   config = normalizeConfig({ ...config, [key]: value }); activePreset = '';
@@ -129,10 +144,11 @@ document.querySelector('#panel-content').addEventListener('input', e => {
 document.querySelectorAll('[data-preset]').forEach(button => button.onclick = () => {
   activePreset = button.dataset.preset; config = { ...presets[activePreset] }; studio?.rebuild(config); renderPanel(); updateMeta(); toast(`${activePreset} is your new starting point.`);
 });
-document.querySelector('#reset-design').onclick = () => { config = { ...defaults }; activePreset = 'Moon Woven'; studio?.rebuild(config); studio?.resetView(); renderPanel(); updateMeta(); toast('Back to the original Moon Woven.'); };
-document.querySelector('#reset-view').onclick = () => studio?.resetView();
-document.querySelector('#zoom-in').onclick = () => studio?.zoom(-0.7);
-document.querySelector('#zoom-out').onclick = () => studio?.zoom(0.7);
+document.querySelector('#reset-design').onclick = () => { config = { ...defaults }; activePreset = 'Moon Woven'; studio?.rebuild(config); setDetailView(false); renderPanel(); updateMeta(); toast('Back to the original Moon Woven.'); };
+document.querySelector('#reset-view').onclick = () => setDetailView(false);
+document.querySelector('#inspect-pendant').onclick = () => setDetailView(!pendantDetail);
+document.querySelector('#zoom-in').onclick = () => studio?.zoom(pendantDetail ? -0.14 : -0.7);
+document.querySelector('#zoom-out').onclick = () => studio?.zoom(pendantDetail ? 0.14 : 0.7);
 document.querySelector('#auto-rotate').onclick = (e) => { rotating = !rotating; studio?.setRotate(rotating); e.currentTarget.setAttribute('aria-pressed', rotating); };
 document.querySelector('#take-photo').onclick = () => { if (studio) { download(studio.screenshot(), 'moon-woven-preview.png'); toast('A little snapshot of your creation.'); } };
 document.querySelector('#save-design').onclick = () => {
@@ -162,10 +178,10 @@ document.querySelector('#open-saved').onclick = () => { renderSaved(); dialog.sh
 document.querySelector('#close-saved').onclick = () => dialog.close();
 dialog.addEventListener('click', e => { if (e.target === dialog) { const r = dialog.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close(); } });
 renderPanel();
-try { studio = createStudio(document.querySelector('#scene'), config); }
+try { studio = createStudio(document.querySelector('#scene'), config); syncViewState(); }
 catch (error) {
   console.error('3D preview unavailable', error);
-  document.querySelector('#scene').innerHTML = '<div class="webgl-error"><h3>Your 3D preview needs WebGL.</h3><p>Try a browser with hardware acceleration enabled. You can still customize, save, and download your design choices.</p></div>';
-  for (const id of ['take-photo','zoom-in','zoom-out','auto-rotate','reset-view']) document.getElementById(id).disabled = true;
+  document.querySelector('#scene').innerHTML = '<div class="webgl-error"><h3>Your 3D preview couldn’t load.</h3><p>Refresh to try again, or use a browser with WebGL enabled. You can still customize, save, and download your design choices.</p></div>';
+  for (const id of ['take-photo','zoom-in','zoom-out','auto-rotate','reset-view','inspect-pendant']) document.getElementById(id).disabled = true;
 }
 window.addEventListener('pagehide', event => { if (!event.persisted) studio?.dispose(); });

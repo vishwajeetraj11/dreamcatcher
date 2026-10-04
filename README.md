@@ -15,7 +15,7 @@ Open the localhost URL printed by Vite. `npm run build` creates the production b
 
 - Crescent, circle, and teardrop frames, three finishes, three weave patterns, four thread colors, and five stone colors.
 - Adjustable strand count and length; optional quartz pendant and accents.
-- Orbit, zoom, automatic rotation, and reset camera controls.
+- Orbit, zoom, automatic rotation, reset camera, and an Inspect pendant close-up that stays focused while materials change.
 - Three preset starting points.
 - Save, reopen, and delete up to 30 designs on the current browser/device.
 - Download a studio PNG preview or a JSON design specification.
@@ -27,9 +27,11 @@ Saved designs use localStorage. There is no account, checkout, order submission,
 
 - `src/scene.js`: lighting, olive studio backdrop, camera fitting, and renderer lifecycle.
 - `src/model.js`: procedural geometry, woven construction, and geometry batching.
-- `src/materials.js`: seeded surface textures and physically based stone materials.
+- `src/materials.js`: coherent volumetric mineral inclusions, local scattering, roughness, and seeded surface textures.
+- `src/mineral-geometry.js`: continuous beveled quartz facets and rounded fractured pebble surfaces.
+- `src/studio-lighting.js`: local HDR soft-window environment; no remote assets required.
 - `src/config.js`: options, presets, validation, and saved-design parsing.
 - `src/main.js`: customer controls and persistence.
 - `src/style.css`: responsive studio interface.
 
-Run `npm test` for configuration and saved-data validation tests.
+Run `npm test` for configuration, saved-data, geometry integrity, pendant watertightness, and resource-lifecycle checks.
