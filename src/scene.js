@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSurfaceTextures } from './materials.js';
 import { createDreamcatcher } from './model.js';
-import { createStudioEnvironment } from './studio-lighting.js';
+import { createAtmosphere } from './atmosphere.js';
+import { applyBreeze } from './breeze.js';
 import { fitPerspectiveBounds, OVERVIEW_DIRECTION } from './camera-framing.js';
 
-export function createStudio(container, initialConfig) {
+export function createStudio(container, initialConfig, onMotionPreferenceChange = () => {}) {
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -26,45 +27,40 @@ export function createStudio(container, initialConfig) {
   controls.maxPolarAngle = Math.PI * 0.82;
   controls.minPolarAngle = Math.PI * 0.18;
 
-  const environment = createStudioEnvironment(renderer);
-  scene.environment = environment.texture;
-  scene.environmentIntensity = 0.85;
-
-  // The olive photographic backdrop also refracts through the quartz.
-  // A CSS-only background would make transmissive stones reflect an empty scene.
-  const backgroundCanvas = document.createElement('canvas');
-  backgroundCanvas.width = backgroundCanvas.height = 512;
-  const ctx = backgroundCanvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(210, 180, 30, 256, 256, 420);
-  gradient.addColorStop(0, '#58694e'); gradient.addColorStop(0.65, '#506246'); gradient.addColorStop(1, '#485b40');
-  ctx.fillStyle = gradient; ctx.fillRect(0, 0, 512, 512);
-  const background = new THREE.CanvasTexture(backgroundCanvas);
-  background.colorSpace = THREE.SRGBColorSpace;
-  scene.background = background;
-  scene.backgroundIntensity = 1;
-
-  scene.add(new THREE.HemisphereLight(0xfff4e5, 0x555143, 0.42));
-  const sun = new THREE.DirectionalLight(0xfff0df, 2.15);
-  sun.position.set(-3.5, 5, 6); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -3.5, right: 3.5, top: 3.5, bottom: -4.5, near: 0.5, far: 20 });
-  sun.shadow.normalBias = 0.004; sun.shadow.bias = -0.00008;
-  sun.shadow.radius = 3;
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xeff3f4, 0.3); fill.position.set(4, 0.8, 4); scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xfff1df, 0.38); rim.position.set(2, 3, -4); scene.add(rim);
+  const atmosphere = createAtmosphere(scene, renderer);
+  const { sun } = atmosphere;
 
   const textures = createSurfaceTextures();
   let model, disposed = false, rotate = false, pendantFocused = false;
   let homeDistance = 10, homeTarget = new THREE.Vector3(0, -0.3, 0);
   let modelBounds = new THREE.Box3(), viewportSize = { width: 1, height: 1 };
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reducedMotion = motionPreference.matches, breeze = false;
+  controls.enableDamping = !reducedMotion;
+  let breezeTime = 0, breezeStrength = 0, previousTime = null;
+  function stopBreeze() {
+    breeze = false; breezeTime = 0; breezeStrength = 0;
+    if (model) applyBreeze(model, 0, 0);
+  }
+  function updateMotionPreference(event) {
+    reducedMotion = event.matches;
+    controls.enableDamping = !reducedMotion;
+    if (reducedMotion) {
+      stopBreeze(); rotate = false; controls.autoRotate = false;
+      // Flush any orbit inertia now rather than letting the camera coast.
+      controls.update(); keepWholePieceVisible();
+      atmosphere.finishTransition(); fitShadow();
+      renderer.render(scene, camera);
+    }
+    onMotionPreferenceChange(reducedMotion);
+  }
+  motionPreference.addEventListener('change', updateMotionPreference);
   function overviewFrame(direction = OVERVIEW_DIRECTION) {
     return fitPerspectiveBounds(modelBounds, direction, viewportSize, camera.fov);
   }
   function fitCamera(reset = false) {
     if (!model) return;
-    modelBounds.setFromObject(model);
+    modelBounds.copy(model.userData.previewBounds);
     const frame = overviewFrame();
     homeTarget.copy(frame.target); homeDistance = frame.distance;
     controls.maxDistance = Math.max(17, homeDistance * 2.5);
@@ -97,6 +93,8 @@ export function createStudio(container, initialConfig) {
       if (pendantFocused) resetView();
       return false;
     }
+    // Keep the close-up steady and fit it using the same rest pose we render.
+    applyBreeze(model, 0, 0);
     const bounds = new THREE.Box3().setFromObject(pendant);
     const size = bounds.getSize(new THREE.Vector3());
     const target = bounds.getCenter(new THREE.Vector3());
@@ -113,7 +111,7 @@ export function createStudio(container, initialConfig) {
   }
   function fitShadow() {
     sun.shadow.updateMatrices(sun);
-    const bounds = new THREE.Box3().setFromObject(model).applyMatrix4(sun.shadow.camera.matrixWorldInverse);
+    const bounds = modelBounds.clone().applyMatrix4(sun.shadow.camera.matrixWorldInverse);
     Object.assign(sun.shadow.camera, {
       left: bounds.min.x - 0.3, right: bounds.max.x + 0.3,
       bottom: bounds.min.y - 0.3, top: bounds.max.y + 0.3,
@@ -132,8 +130,9 @@ export function createStudio(container, initialConfig) {
     const zoom = model ? Math.max(1, camera.position.distanceTo(controls.target) / homeDistance) : 1;
     if (model) { model.userData.dispose(); scene.remove(model); }
     model = createDreamcatcher(config, textures); scene.add(model);
-    fitShadow();
     fitCamera(!direction);
+    fitShadow();
+    applyBreeze(model, breezeTime, pendantFocused ? 0 : breezeStrength);
     if (pendantFocused) {
       focusPendant();
     } else if (direction) {
@@ -154,16 +153,29 @@ export function createStudio(container, initialConfig) {
   const observer = new ResizeObserver(resize); observer.observe(container);
   resize(); rebuild(initialConfig);
   renderer.setAnimationLoop((time) => {
-    if (disposed || document.hidden) return;
-    controls.autoRotate = rotate;
+    if (disposed || document.hidden) { previousTime = null; return; }
+    const delta = previousTime === null ? 0 : Math.min((time - previousTime) / 1000, 0.05);
+    previousTime = time;
+    if (breeze && !reducedMotion && !pendantFocused) {
+      breezeTime += delta;
+      breezeStrength = Math.min(1, breezeStrength + delta * 0.6);
+    }
+    applyBreeze(model, breezeTime, breeze && !reducedMotion && !pendantFocused ? breezeStrength : 0);
+    if (atmosphere.update(delta)) fitShadow();
+    controls.autoRotate = rotate && !reducedMotion;
     controls.autoRotateSpeed = 1.2;
     controls.update(); keepWholePieceVisible();
-    if (!reducedMotion) model.rotation.z = Math.sin(time * 0.0004) * 0.005;
     renderer.render(scene, camera);
   });
   return {
     rebuild, resetView, focusPendant,
-    setRotate(value) { rotate = value; },
+    get reducedMotion() { return reducedMotion; },
+    setRotate(value) { rotate = Boolean(value) && !reducedMotion; },
+    setBreeze(value) {
+      if (value && !reducedMotion) breeze = true;
+      else stopBreeze();
+    },
+    setLighting(value) { atmosphere.setLighting(value, reducedMotion); fitShadow(); },
     zoom(delta) {
       keepWholePieceVisible();
       const direction = camera.position.clone().sub(controls.target);
@@ -173,8 +185,8 @@ export function createStudio(container, initialConfig) {
     screenshot() { keepWholePieceVisible(); renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
     dispose() {
       disposed = true; observer.disconnect(); controls.dispose(); renderer.setAnimationLoop(null);
-      model.userData.dispose(); textures.dispose(); background.dispose(); environment.dispose();
-      sun.shadow.map?.dispose(); renderer.dispose();
+      motionPreference.removeEventListener('change', updateMotionPreference);
+      model.userData.dispose(); textures.dispose(); atmosphere.dispose(); renderer.dispose();
     }
   };
 }

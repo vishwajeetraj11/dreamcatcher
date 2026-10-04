@@ -3,7 +3,7 @@ import * as THREE from 'three';
 // A diffuse window, reflector and dark studio walls. Keeping the radiance in
 // linear HDR preserves gentle reflections without clipping every polished face
 // to white. The broad, feathered sources avoid miniature room/box reflections.
-export function createStudioEnvironment(renderer) {
+export function createStudioEnvironment(renderer, tint = [1, 1, 1]) {
   const width = 512, height = 256;
   const pixels = new Float32Array(width * height * 4);
   const sources = [
@@ -35,6 +35,7 @@ export function createStudioEnvironment(renderer) {
         const falloff = Math.exp(-2 * (horizontal * horizontal + vertical * vertical));
         for (let channel = 0; channel < 3; channel++) pixels[i + channel] += source.color[channel] * falloff;
       }
+      for (let channel = 0; channel < 3; channel++) pixels[i + channel] *= tint[channel];
       pixels[i + 3] = 1;
     }
   }

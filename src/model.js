@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createMaterials, randomSequence } from './materials.js';
 import { pebbleGeometry, pendantGeometry } from './mineral-geometry.js';
+import { hangingPivot, attachBreezeRig } from './breeze.js';
 
 const v = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const Z = v(0, 0, 1), Y = v(0, 1, 0);
@@ -238,18 +239,23 @@ export function createDreamcatcher(config, textures) {
     });
   }
   const beadGeometry = new THREE.SphereGeometry(1, 24, 18);
+  const movingStrands = [];
+  let pendantPivot = null;
   for (let i = 0; i < config.strands; i++) {
     const f = config.strands === 1 ? 0.5 : i / (config.strands - 1);
     const anchor = config.shape === 'moon' ? arc.getPointAt(0.67 + f * 0.28) : boundary(config.shape === 'circle' ? 0.64 + f * 0.23 : 0.36 + f * 0.28);
     anchor.z += 0.035;
     const strandLength = (config.shape === 'moon' ? 1.35 + f * 0.59 : 1.26 + Math.sin(f * Math.PI) * 0.56) * config.length;
+    const { pivot, contents } = hangingPivot(model, anchor, `hanging-strand-${i + 1}`);
+    const strandBuild = new Builder(contents);
+    movingStrands.push({ pivot, length: strandLength });
     const bottom = anchor.clone().add(v((rnd() - 0.5) * 0.07, -strandLength, 0.02));
-    build.thread(anchor, bottom, mat.cotton, 0.0075);
+    strandBuild.thread(anchor, bottom, mat.cotton, 0.0075);
     const beadCount = config.shape === 'moon' ? Math.round(3 + f) : 3 + Math.round(Math.sin(f * Math.PI));
     for (let j = 0; j < beadCount; j++) {
       const p = anchor.clone().lerp(bottom, (j + 0.52) / beadCount);
       const size = 0.076 + rnd() * 0.012;
-      const bead = addCrystal(model, beadGeometry, mat.bead, p, [size, size * (1.42 + rnd() * 0.12), size * 0.88], [0.04, rnd(), (rnd() - 0.5) * 0.15]);
+      const bead = addCrystal(contents, beadGeometry, mat.bead, p, [size, size * (1.42 + rnd() * 0.12), size * 0.88], [0.04, rnd(), (rnd() - 0.5) * 0.15]);
       bead.castShadow = true;
       // Dense clusters of clear chips replace the disconnected floating spacers.
       const sectionLength = strandLength / beadCount;
@@ -260,15 +266,19 @@ export function createDreamcatcher(config, textures) {
         const chipPos = p.clone().add(v((rnd() - 0.5) * 0.069, -drop, (rnd() - 0.5) * 0.04));
         if (chipPos.y < bottom.y + 0.01) continue;
         const s = 0.041 + rnd() * 0.025;
-        addCrystal(model, pebbleShapes[(j + k + i) % 7], mat.quartz, chipPos, [s * 1.12, s * 0.55, s * 0.75], [rnd() * 3, rnd() * 3, rnd() * 3]);
+        addCrystal(contents, pebbleShapes[(j + k + i) % 7], mat.quartz, chipPos, [s * 1.12, s * 0.55, s * 0.75], [rnd() * 3, rnd() * 3, rnd() * 3]);
       }
     }
     // Tie the hanging cord directly onto the wrapped frame, including visible knots.
-    build.add(new THREE.TorusGeometry(0.025, 0.008, 5, 12), mat.cotton, anchor.clone().add(v(0, -0.11, 0)), [1, 1.2, 1], new THREE.Euler(0, 0.3, 0.2));
-    build.tube([bottom, bottom.clone().add(v(0.027, -0.025, 0.01)), bottom.clone().add(v(-0.023, -0.065, 0.01))], 0.007, mat.cotton, 10, 5);
+    strandBuild.add(new THREE.TorusGeometry(0.025, 0.008, 5, 12), mat.cotton, anchor.clone().add(v(0, -0.11, 0)), [1, 1.2, 1], new THREE.Euler(0, 0.3, 0.2));
+    strandBuild.tube([bottom, bottom.clone().add(v(0.027, -0.025, 0.01)), bottom.clone().add(v(-0.023, -0.065, 0.01))], 0.007, mat.cotton, 10, 5);
+    strandBuild.finish();
   }
   if (config.pendant) {
     const anchor = config.shape === 'moon' ? arc.getPointAt(0.022).add(v(0, -0.055, 0.0)) : previous.reduce((top, node) => node.y > top.y ? node : top).clone();
+    const { pivot, contents } = hangingPivot(model, anchor, 'pendant-pivot');
+    pendantPivot = pivot;
+    const build = new Builder(contents);
     // The cotton loop holds a pair of intersecting oval jump rings. Each ring
     // passes through the next, rather than floating on top of a closed cap.
     build.tube([anchor.clone().add(v(-0.018, 0.02, 0)), anchor.clone().add(v(-0.015, -0.063, 0.018)), anchor.clone().add(v(0.015, -0.061, 0.022)), anchor.clone().add(v(0.018, 0.02, 0))], 0.0055, mat.cotton, 22, 5);
@@ -310,12 +320,14 @@ export function createDreamcatcher(config, textures) {
       }
     }
     const crystalTop = cap.clone().add(v(0, -0.041, 0));
-    const pendant = addCrystal(model, pendantGeometry(), mat.pink, crystalTop, [1, 1, 1], [0, 0, 0]);
+    const pendant = addCrystal(contents, pendantGeometry(), mat.pink, crystalTop, [1, 1, 1], [0, 0, 0]);
     pendant.name = 'rose-quartz-pendant';
+    build.finish();
   }
   const suspension = config.shape === 'moon' ? arc.getPointAt(0.14) : boundary(config.shape === 'circle' ? 0.25 : 0);
   build.tube([suspension, suspension.clone().add(v(-0.07, 0.21, -0.02)), suspension.clone().add(v(-0.01, 0.31, -0.02)), suspension.clone().add(v(0.065, 0.20, -0.02)), suspension], 0.008, mat.cotton, 35, 6);
   build.finish();
+  attachBreezeRig(model, suspension.clone().add(v(-0.01, 0.31, -0.02)), movingStrands, pendantPivot);
   // Some configurations do not use all the shared geometries.
   const used = new Set(); model.traverse(o => { if (o.geometry) used.add(o.geometry); });
   for (const geometry of [...pebbleShapes, beadGeometry]) if (!used.has(geometry)) geometry.dispose();

@@ -16,6 +16,8 @@ Open the localhost URL printed by Vite. `npm run build` creates the production b
 - Crescent, circle, and teardrop frames, three finishes, three weave patterns, four thread colors, and five stone colors.
 - Adjustable strand count and length; optional quartz pendant and accents.
 - Orbit, zoom, automatic rotation, Fit whole piece, and an Inspect pendant close-up that stays focused while materials change. The main view keeps the full model inside the preview, including after resizing or extending strands.
+- Optional Studio, Daylight, and Evening lighting, with matching reflections and backdrop.
+- Still (default) or Gentle breeze: the frame and individual hanging strands sway about their attachment points. Motion pauses for pendant inspection and respects changes to the system's reduced-motion preference. Atmosphere affects the preview and PNG export, not the saved design specification.
 - Three preset starting points.
 - Save, reopen, and delete up to 30 designs on the current browser/device.
 - Download a studio PNG preview or a JSON design specification.
@@ -26,6 +28,8 @@ Saved designs use localStorage. There is no account, checkout, order submission,
 ## Structure
 
 - `src/scene.js`: lighting, olive studio backdrop, camera controls, and renderer lifecycle.
+- `src/atmosphere.js`: lighting presets, transitions, and cached reflection environments.
+- `src/breeze.js`: hanging pivots, lightweight breeze motion, and a fixed envelope for camera fitting.
 - `src/camera-framing.js`: perspective fitting with space reserved for preview controls.
 - `src/model.js`: procedural geometry, woven construction, and geometry batching.
 - `src/materials.js`: coherent volumetric mineral inclusions, local scattering, roughness, and seeded surface textures.

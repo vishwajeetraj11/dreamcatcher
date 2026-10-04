@@ -34,7 +34,7 @@ test('color changes reuse geometry and leave shared textures available', () => {
   const geometries = [], materials = [];
   model.traverse(object => { if (object.geometry) { geometries.push(object.geometry); materials.push(object.material); } });
   let textureDisposals = 0;
-  for (const texture of [textures.bark, textures.jute, textures.stone, textures.endGrain]) texture.addEventListener('dispose', () => textureDisposals++);
+  for (const texture of [textures.bark, textures.jute, textures.cotton, textures.stone, textures.endGrain]) texture.addEventListener('dispose', () => textureDisposals++);
   model.userData.updateMaterials({ ...defaults, stone: 'rose', frame: 'walnut', thread: 'blush' });
   let i = 0;
   model.traverse(object => {
@@ -45,7 +45,7 @@ test('color changes reuse geometry and leave shared textures available', () => {
   model.userData.dispose();
   assert.equal(textureDisposals, 0);
   textures.dispose();
-  assert.equal(textureDisposals, 4);
+  assert.equal(textureDisposals, 5);
 });
 
 test('pendant is a single closed beveled crystal and can be removed', () => {

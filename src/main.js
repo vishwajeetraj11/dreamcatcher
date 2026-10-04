@@ -16,6 +16,7 @@ const icons = {
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   leaf: '<path d="M5 19C-2 7 11 3 21 3c0 12-5 19-13 13M4 21 16 9"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>',
+  wind: '<path d="M3 8h12a3 3 0 1 0-3-3M2 12h17a2 2 0 1 0-2-2M4 16h9a3 3 0 1 1-3 3"/>',
   hand: '<path d="M5 12V8a2 2 0 0 1 4 0v4-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v6-3a2 2 0 0 1 4 0v6c0 4-3 7-7 7h-2c-3 0-5-3-7-5l-3-4a2 2 0 0 1 3-2l3 3"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/>'
 };
@@ -25,6 +26,7 @@ function shapeIcon(shape) {
   return `<svg viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">${path}<path d="M17 44v7m7-6v10m7-11v7"/></svg>`;
 }
 let config = { ...defaults }, activePreset = 'Moon Woven', activeTab = 'design', rotating = false, pendantDetail = false, studio;
+let lighting = 'studio', breeze = false;
 let saved = [];
 try { saved = readSaved(localStorage); } catch { /* Browser storage may be unavailable. */ }
 const app = document.querySelector('#app');
@@ -44,11 +46,21 @@ app.innerHTML = `
       <div class="save-area"><button class="primary-button" id="save-design">${icon('bookmark')} Save my design ${icon('arrow')}</button><p>Your little creation, saved on this device.</p></div>
     </aside>
     <div class="preview">
+      <div class="preview-stage">
       <div class="preview-top"><div class="preview-label"><span class="live-dot"></span> LIVE 3D PREVIEW</div><div class="preview-actions"><button class="detail-button" id="inspect-pendant" aria-pressed="false">${icon('inspect')}<span>Inspect pendant</span></button><button class="icon-button" id="take-photo" aria-label="Download preview image" title="Download preview image">${icon('download')}</button></div></div>
       <div class="scene" id="scene"></div>
       <div class="scene-caption"><span class="tiny-star">✧</span><div>Thoughtfully chosen.<br><em>Uniquely yours.</em></div></div>
       <div class="preview-bottom"><div class="object-name"><span id="object-title">Moon Woven</span><span id="object-subtitle">NATURAL JUTE · GREEN AVENTURINE</span></div><div class="view-tools"><button id="auto-rotate" class="icon-button" aria-label="Auto rotate" aria-pressed="false" title="Auto rotate">${icon('rotate')}</button><span class="tool-divider"></span><button id="zoom-out" class="icon-button" aria-label="Zoom out">${icon('minus')}</button><button id="zoom-in" class="icon-button" aria-label="Zoom in">${icon('plus')}</button><span class="tool-divider"></span><button id="reset-view" class="icon-button" aria-label="Fit whole piece" title="Fit whole piece">${icon('reset')}</button></div></div>
       <div class="gesture-hint"><span>↔</span> Drag to explore <span class="hint-dot">·</span> Scroll to get closer</div>
+      </div>
+      <section class="atmosphere" aria-label="Preview atmosphere">
+        <div class="atmosphere-heading"><h3>Set the mood</h3><span>Just for the preview</span></div>
+        <div class="atmosphere-options">
+          <div class="atmosphere-field"><span class="atmosphere-label" id="light-label">${icon('sun')} Lighting</span><div class="atmosphere-segmented" role="group" aria-labelledby="light-label">${[['studio', 'Studio'], ['daylight', 'Daylight'], ['evening', 'Evening']].map(([key, label]) => `<button data-lighting="${key}" aria-pressed="${key === 'studio'}">${label}</button>`).join('')}</div></div>
+          <div class="atmosphere-field"><span class="atmosphere-label" id="air-label">${icon('wind')} Air</span><div class="atmosphere-segmented" role="group" aria-labelledby="air-label"><button data-breeze="off" aria-pressed="true">Still</button><button data-breeze="on" aria-pressed="false" aria-describedby="atmosphere-note">Gentle breeze</button></div></div>
+        </div>
+        <p class="atmosphere-note" id="atmosphere-note" role="status">See your piece in a different light.</p>
+      </section>
     </div>
   </section>
   <section class="below-studio"><div class="presets-label"><span class="eyebrow">A LITTLE INSPIRATION</span><h3>Start with a feeling.</h3></div><div class="preset-list">${Object.entries(presets).map(([name, c], i) => `<button class="preset ${i === 0 ? 'selected' : ''}" data-preset="${name}" aria-pressed="${i === 0}"><span class="preset-art preset-${i}">${shapeIcon(c.shape)}</span><span><strong>${name}</strong><small>${['Earthy & grounding', 'Warm & free-spirited', 'Soft & a little dreamy'][i]}</small></span><span class="preset-check">${icon('check')}</span></button>`).join('')}</div></section>
@@ -92,6 +104,28 @@ function syncViewState() {
   document.querySelector('.preview').classList.toggle('detail-view', pendantDetail);
   document.querySelector('#object-title').textContent = pendantDetail ? 'Rose quartz' : activePreset || 'Your custom creation';
   document.querySelector('#object-subtitle').textContent = pendantDetail ? 'Facets, inclusions & silver' : `${palettes.frame[config.frame].name} · ${palettes.stone[config.stone].name}`;
+  syncAtmosphere();
+}
+function syncAtmosphere() {
+  const reduced = Boolean(studio?.reducedMotion);
+  if (reduced) { breeze = false; rotating = false; }
+  document.querySelectorAll('[data-lighting]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.lighting === lighting);
+    button.disabled = !studio;
+  });
+  document.querySelectorAll('[data-breeze]').forEach(button => {
+    button.setAttribute('aria-pressed', (button.dataset.breeze === 'on') === breeze);
+    button.disabled = !studio || (reduced && button.dataset.breeze === 'on');
+  });
+  const rotateButton = document.querySelector('#auto-rotate');
+  rotateButton.disabled = !studio || reduced;
+  rotateButton.setAttribute('aria-pressed', rotating);
+  rotateButton.title = reduced ? 'Auto rotation is off for reduced motion' : 'Auto rotate';
+  document.querySelector('#atmosphere-note').textContent = !studio ? 'Atmosphere is available when the 3D preview loads.'
+    : reduced ? 'Motion is off to respect your reduced-motion preference.'
+    : breeze && pendantDetail ? 'Breeze paused while you inspect the pendant.'
+    : breeze ? 'A soft sway, from the frame to the hanging stones.'
+    : 'See your piece in a different light.';
 }
 function setDetailView(enabled) {
   if (enabled) pendantDetail = Boolean(studio?.focusPendant());
@@ -150,6 +184,16 @@ document.querySelector('#inspect-pendant').onclick = () => setDetailView(!pendan
 document.querySelector('#zoom-in').onclick = () => studio?.zoom(pendantDetail ? -0.14 : -0.7);
 document.querySelector('#zoom-out').onclick = () => studio?.zoom(pendantDetail ? 0.14 : 0.7);
 document.querySelector('#auto-rotate').onclick = (e) => { rotating = !rotating; studio?.setRotate(rotating); e.currentTarget.setAttribute('aria-pressed', rotating); };
+document.querySelectorAll('[data-lighting]').forEach(button => button.onclick = () => {
+  lighting = button.dataset.lighting;
+  studio?.setLighting(lighting);
+  syncAtmosphere();
+});
+document.querySelectorAll('[data-breeze]').forEach(button => button.onclick = () => {
+  breeze = button.dataset.breeze === 'on';
+  studio?.setBreeze(breeze);
+  syncAtmosphere();
+});
 document.querySelector('#take-photo').onclick = () => { if (studio) { download(studio.screenshot(), 'moon-woven-preview.png'); toast('A little snapshot of your creation.'); } };
 document.querySelector('#save-design').onclick = () => {
   const entry = { id: crypto.randomUUID(), name: activePreset || `My dream catcher ${saved.length + 1}`, config: { ...config }, date: new Date().toISOString() };
@@ -178,10 +222,11 @@ document.querySelector('#open-saved').onclick = () => { renderSaved(); dialog.sh
 document.querySelector('#close-saved').onclick = () => dialog.close();
 dialog.addEventListener('click', e => { if (e.target === dialog) { const r = dialog.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close(); } });
 renderPanel();
-try { studio = createStudio(document.querySelector('#scene'), config); syncViewState(); }
+try { studio = createStudio(document.querySelector('#scene'), config, syncAtmosphere); syncViewState(); }
 catch (error) {
   console.error('3D preview unavailable', error);
   document.querySelector('#scene').innerHTML = '<div class="webgl-error"><h3>Your 3D preview couldn’t load.</h3><p>Refresh to try again, or use a browser with WebGL enabled. You can still customize, save, and download your design choices.</p></div>';
   for (const id of ['take-photo','zoom-in','zoom-out','auto-rotate','reset-view','inspect-pendant']) document.getElementById(id).disabled = true;
+  syncAtmosphere();
 }
 window.addEventListener('pagehide', event => { if (!event.persisted) studio?.dispose(); });

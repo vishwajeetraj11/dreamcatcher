@@ -43,6 +43,14 @@ export function createSurfaceTextures() {
   bark.repeat.set(3, 1);
   const jute = texture(128, (u, v) => 0.48 + noise(u * 12, v * 95) * 0.34 + Math.sin(v * 460 + u * 28) * 0.1);
   jute.repeat.set(16, 2);
+  // Cotton has a fine, soft nap rather than the coarse ridges of jute.
+  // Keep its surface independent of the frame's wrapping and colour choices.
+  const cotton = texture(128, (u, v) => {
+    const fibres = noise(u * 72, v * 110) * 0.13;
+    const twist = Math.sin((u * 18 + v * 3) * Math.PI * 2) * 0.035;
+    return 0.46 + fibres + noise(u * 24, v * 38) * 0.08 + twist;
+  });
+  cotton.repeat.set(3, 1);
   const stone = texture(128, (u, v) => {
     const cloud = noise(u * 6, v * 8) * 0.65 + noise(u * 17, v * 18) * 0.25 + noise(u * 41, v * 32) * 0.1;
     return 0.70 + cloud * 0.3;
@@ -53,7 +61,7 @@ export function createSurfaceTextures() {
     const value = 0.65 + ring * 0.08 + noise(u * 40, v * 40) * 0.12;
     return [value, value * 0.77, value * 0.51];
   }, true);
-  return { bark, jute, stone, endGrain, dispose() { [bark, jute, stone, endGrain].forEach(t => t.dispose()); } };
+  return { bark, jute, cotton, stone, endGrain, dispose() { [bark, jute, cotton, stone, endGrain].forEach(t => t.dispose()); } };
 }
 function cloudyCrystal(params, { scale = 1.7, density = 0.7, fracture = 0.3, milk = '#f4e8d8' } = {}) {
   const material = new THREE.MeshPhysicalMaterial(params);
@@ -156,7 +164,7 @@ export function createMaterials(config, surfaces) {
     rope: standard({ color: frameColor.clone().multiplyScalar(0.83), bumpMap: surfaces.jute, bumpScale: 0.009, roughness: 0.93 }),
     ropeLight: standard({ color: frameColor.clone().lerp(new THREE.Color('#e5c698'), 0.22), roughness: 1 }),
     fuzz: new THREE.LineBasicMaterial({ color: frameColor.clone().multiplyScalar(1.17), transparent: true, opacity: 0.53, depthWrite: false }),
-    cotton: standard({ color: threadColor, bumpMap: surfaces.jute, bumpScale: 0.003, roughness: 0.93 }),
+    cotton: standard({ name: 'Cotton thread', color: threadColor, bumpMap: surfaces.cotton, bumpScale: 0.001, roughness: 0.98 }),
     paint: standard({ color: '#f2e6c9', roughness: 0.96 }),
     silver: standard({ color: '#b4a38d', metalness: 0.92, roughness: 0.37 }),
     silverDark: standard({ color: '#5d5141', metalness: 0.80, roughness: 0.54 }),
