@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSurfaceTextures } from './materials.js';
 import { createDreamcatcher } from './model.js';
 import { createStudioEnvironment } from './studio-lighting.js';
+import { fitPerspectiveBounds, OVERVIEW_DIRECTION } from './camera-framing.js';
 
 export function createStudio(container, initialConfig) {
   const scene = new THREE.Scene();
@@ -56,25 +57,39 @@ export function createStudio(container, initialConfig) {
   const textures = createSurfaceTextures();
   let model, disposed = false, rotate = false, pendantFocused = false;
   let homeDistance = 10, homeTarget = new THREE.Vector3(0, -0.3, 0);
+  let modelBounds = new THREE.Box3(), viewportSize = { width: 1, height: 1 };
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function overviewFrame(direction = OVERVIEW_DIRECTION) {
+    return fitPerspectiveBounds(modelBounds, direction, viewportSize, camera.fov);
+  }
   function fitCamera(reset = false) {
     if (!model) return;
-    const bounds = new THREE.Box3().setFromObject(model);
-    const size = bounds.getSize(new THREE.Vector3());
-    homeTarget = bounds.getCenter(new THREE.Vector3());
-    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
-    homeDistance = Math.max(size.y / (2 * Math.tan(halfFov)), size.x / (2 * Math.tan(halfFov) * camera.aspect)) * 1.18;
+    modelBounds.setFromObject(model);
+    const frame = overviewFrame();
+    homeTarget.copy(frame.target); homeDistance = frame.distance;
+    controls.maxDistance = Math.max(17, homeDistance * 2.5);
     if (reset) {
       if (pendantFocused) focusPendant();
       else resetView();
     }
   }
+  function keepWholePieceVisible() {
+    if (pendantFocused || !model) return;
+    const direction = camera.position.clone().sub(controls.target).normalize();
+    const frame = overviewFrame(direction);
+    controls.minDistance = frame.distance;
+    controls.maxDistance = Math.max(controls.maxDistance, frame.distance * 2.5);
+    const distance = Math.max(camera.position.distanceTo(controls.target), frame.distance);
+    controls.target.copy(frame.target);
+    camera.position.copy(controls.target).addScaledVector(direction, distance);
+    camera.lookAt(controls.target);
+  }
   function resetView() {
     pendantFocused = false;
-    controls.minDistance = 4.3;
+    controls.minDistance = homeDistance;
     controls.target.copy(homeTarget);
-    camera.position.copy(homeTarget).add(new THREE.Vector3(0.085, 0.018, 1).normalize().multiplyScalar(homeDistance));
-    controls.update();
+    camera.position.copy(homeTarget).addScaledVector(OVERVIEW_DIRECTION, homeDistance);
+    controls.update(); keepWholePieceVisible();
   }
   function focusPendant() {
     const pendant = model?.getObjectByName('rose-quartz-pendant');
@@ -114,7 +129,7 @@ export function createStudio(container, initialConfig) {
       return;
     }
     const direction = model ? camera.position.clone().sub(controls.target).normalize() : null;
-    const zoom = model ? camera.position.distanceTo(controls.target) / homeDistance : 1;
+    const zoom = model ? Math.max(1, camera.position.distanceTo(controls.target) / homeDistance) : 1;
     if (model) { model.userData.dispose(); scene.remove(model); }
     model = createDreamcatcher(config, textures); scene.add(model);
     fitShadow();
@@ -123,13 +138,15 @@ export function createStudio(container, initialConfig) {
       focusPendant();
     } else if (direction) {
       controls.target.copy(homeTarget);
+      controls.minDistance = overviewFrame(direction).distance;
       camera.position.copy(homeTarget).addScaledVector(direction, THREE.MathUtils.clamp(homeDistance * zoom, controls.minDistance, controls.maxDistance));
-      controls.update();
+      controls.update(); keepWholePieceVisible();
     }
   }
   function resize() {
     const { width, height } = container.getBoundingClientRect();
     if (!width || !height) return;
+    viewportSize = { width, height };
     renderer.setSize(width, height);
     camera.aspect = width / height; camera.updateProjectionMatrix();
     fitCamera(true);
@@ -140,7 +157,7 @@ export function createStudio(container, initialConfig) {
     if (disposed || document.hidden) return;
     controls.autoRotate = rotate;
     controls.autoRotateSpeed = 1.2;
-    controls.update();
+    controls.update(); keepWholePieceVisible();
     if (!reducedMotion) model.rotation.z = Math.sin(time * 0.0004) * 0.005;
     renderer.render(scene, camera);
   });
@@ -148,11 +165,12 @@ export function createStudio(container, initialConfig) {
     rebuild, resetView, focusPendant,
     setRotate(value) { rotate = value; },
     zoom(delta) {
+      keepWholePieceVisible();
       const direction = camera.position.clone().sub(controls.target);
       camera.position.copy(controls.target).add(direction.setLength(THREE.MathUtils.clamp(direction.length() + delta, controls.minDistance, controls.maxDistance)));
-      controls.update();
+      controls.update(); keepWholePieceVisible();
     },
-    screenshot() { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
+    screenshot() { keepWholePieceVisible(); renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
     dispose() {
       disposed = true; observer.disconnect(); controls.dispose(); renderer.setAnimationLoop(null);
       model.userData.dispose(); textures.dispose(); background.dispose(); environment.dispose();
