@@ -11,6 +11,16 @@ npm run dev
 
 Open the localhost URL printed by Vite. `npm run build` creates the production bundle in `dist/`; `npm run preview` serves that bundle. Node.js 22.12+ is recommended.
 
+## Homepage and design direction
+
+- `/home`: the botanical atelier homepage, with an editorial hero, three design starting points, material stories, studio introduction, and expandable questions.
+- `/moodboard`: the visual direction created before the homepage: palette, typography, original image concepts, and design principles.
+- `/` and `/studio`: the existing customizer. Collection links pass a validated `preset` query parameter, for example `/studio?preset=Desert%20Sun`.
+
+The homepage and moodboard load independently from the Three.js studio. They use Cormorant Garamond and DM Sans, responsive layouts, native links and disclosures, and reduced-motion support.
+
+The two editorial photographs are original AI-generated concepts, created with the built-in imagegen tool. Their final prompts are preserved in `design/image-prompts.json`; optimized images live in `public/images/`. Collection thumbnails are rendered from the actual procedural models. Open `/design/catalog-render.html` on the development server to regenerate and download those WebP thumbnails after model changes. That internal render utility is not included in the production build.
+
 ## Features
 
 - Crescent, circle, and teardrop frames, three finishes, three weave patterns, four thread colors, and five stone colors.

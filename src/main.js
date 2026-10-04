@@ -25,14 +25,16 @@ function shapeIcon(shape) {
   const path = shape === 'moon' ? '<path d="M34 5C0 5 0 42 34 42ZM34 5 14 24l20 18M8 15l26 18M8 32 34 14"/>' : shape === 'circle' ? '<circle cx="24" cy="23" r="18"/><path d="m24 5 11 32L6 17h36L13 37Z"/>' : '<path d="M24 3C20 12 7 21 7 30a17 17 0 0 0 34 0c0-9-13-18-17-27ZM24 3v44M9 24l28 15M39 24 11 39"/>';
   return `<svg viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">${path}<path d="M17 44v7m7-6v10m7-11v7"/></svg>`;
 }
-let config = { ...defaults }, activePreset = 'Moon Woven', activeTab = 'design', rotating = false, pendantDetail = false, studio;
+const requestedPreset = new URLSearchParams(window.location.search).get('preset');
+const startingPreset = Object.hasOwn(presets, requestedPreset) ? requestedPreset : 'Moon Woven';
+let config = { ...presets[startingPreset] }, activePreset = startingPreset, activeTab = 'design', rotating = false, pendantDetail = false, studio;
 let lighting = 'studio', breeze = false;
 let saved = [];
 try { saved = readSaved(localStorage); } catch { /* Browser storage may be unavailable. */ }
 const app = document.querySelector('#app');
 app.innerHTML = `
 <header class="site-header">
-  <a class="brand" href="./" aria-label="Moon Woven home"><span class="brand-symbol">${icon('moon')}</span><span>moon woven<span class="brand-tag">OBJECTS FOR YOUR QUIET MOMENTS</span></span></a>
+  <a class="brand" href="/home" aria-label="Moon Woven home"><span class="brand-symbol">${icon('moon')}</span><span>moon woven<span class="brand-tag">OBJECTS FOR YOUR QUIET MOMENTS</span></span></a>
   <div class="header-center">The dream catcher studio</div>
   <button class="saved-button" id="open-saved">${icon('bookmark')}<span>My designs</span><span class="count" id="saved-count">${saved.length}</span></button>
 </header>
@@ -222,7 +224,8 @@ document.querySelector('#open-saved').onclick = () => { renderSaved(); dialog.sh
 document.querySelector('#close-saved').onclick = () => dialog.close();
 dialog.addEventListener('click', e => { if (e.target === dialog) { const r = dialog.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close(); } });
 renderPanel();
-try { studio = createStudio(document.querySelector('#scene'), config, syncAtmosphere); syncViewState(); }
+updateMeta();
+try { studio = createStudio(document.querySelector('#scene'), config, syncAtmosphere); updateMeta(); }
 catch (error) {
   console.error('3D preview unavailable', error);
   document.querySelector('#scene').innerHTML = '<div class="webgl-error"><h3>Your 3D preview couldn’t load.</h3><p>Refresh to try again, or use a browser with WebGL enabled. You can still customize, save, and download your design choices.</p></div>';
