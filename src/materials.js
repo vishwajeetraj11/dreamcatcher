@@ -162,7 +162,7 @@ export function createMaterials(config, surfaces) {
     silverDark: standard({ color: '#5d5141', metalness: 0.80, roughness: 0.54 }),
     bead: cloudyCrystal({ color: palettes.stone[config.stone].color, roughness: 0.19, metalness: 0, transmission: config.stone === 'clear' ? 0.72 : 0.16, thickness: 0.10, ior: 1.54, attenuationColor: new THREE.Color(palettes.stone[config.stone].color), attenuationDistance: 0.9, clearcoat: 0.14, clearcoatRoughness: 0.18, envMapIntensity: 0.88 }, { scale: 2.2, density: config.stone === 'clear' ? 0.70 : 0.50, fracture: config.stone === 'clear' ? 0.65 : 0.08, milk: config.stone === 'jade' ? '#d1ddbf' : '#f1e5df' }),
     quartz: cloudyCrystal({ color: '#f1e5df', roughness: 0.205, metalness: 0, transmission: 0.78, thickness: 0.09, ior: 1.54, attenuationColor: new THREE.Color('#f4e8e0'), attenuationDistance: 2.2, clearcoat: 0.06, clearcoatRoughness: 0.20, envMapIntensity: 0.90 }, { scale: 2.4, density: 0.85, fracture: 1.0, milk: '#fff1e8' }),
-    pink: cloudyCrystal({ color: '#f0bcb0', roughness: 0.18, transmission: 0.58, thickness: 0.14, ior: 1.54, attenuationColor: new THREE.Color('#f0c9c1'), attenuationDistance: 1.8, clearcoat: 0.06, clearcoatRoughness: 0.20, envMapIntensity: 0.82 }, { scale: 12.2, density: 0.78, fracture: 0.92, milk: '#ffe6dc' }),
+    pink: cloudyCrystal({ color: '#f4d1cb', roughness: 0.12, transmission: 0.88, thickness: 0.14, ior: 1.54, attenuationColor: new THREE.Color('#f0c9c1'), attenuationDistance: 1.8, clearcoat: 0.06, clearcoatRoughness: 0.16, envMapIntensity: 0.82 }, { scale: 12.2, density: 0.34, fracture: 0.68, milk: '#ffe6dc' }),
     inclusion: new THREE.LineBasicMaterial({ color: '#fff4e9', transparent: true, opacity: 0.17, depthWrite: false })
   };
   return result;
