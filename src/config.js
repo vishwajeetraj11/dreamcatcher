@@ -2,7 +2,7 @@ export const defaults = Object.freeze({ shape: 'moon', frame: 'jute', thread: 'i
 export const palettes = {
   frame: { jute: { name: 'Natural jute', color: '#b89870' }, walnut: { name: 'Dark walnut', color: '#665044' }, cotton: { name: 'Ivory cotton', color: '#e4d9bf' } },
   thread: { ivory: { name: 'Ivory', color: '#f2e7cd' }, sage: { name: 'Sage', color: '#9da987' }, blush: { name: 'Blush', color: '#caa49b' }, charcoal: { name: 'Charcoal', color: '#5c5c55' } },
-  stone: { jade: { name: 'Green aventurine', color: '#aec5a0', note: 'A little room for possibility.' }, rose: { name: 'Rose quartz', color: '#dfb5af', note: 'A gentle touch of warmth.' }, amethyst: { name: 'Amethyst', color: '#a99bb8', note: 'For your quiet, creative moments.' }, amber: { name: 'Honey amber', color: '#c49a58', note: 'A little golden-hour glow.' }, clear: { name: 'Clear quartz', color: '#e5e3d6', note: 'Simple, luminous, and light.' } }
+  stone: { jade: { name: 'Green aventurine', color: '#a1c9b3', note: 'A little room for possibility.' }, rose: { name: 'Rose quartz', color: '#dfb5af', note: 'A gentle touch of warmth.' }, amethyst: { name: 'Amethyst', color: '#a99bb8', note: 'For your quiet, creative moments.' }, amber: { name: 'Honey amber', color: '#c49a58', note: 'A little golden-hour glow.' }, clear: { name: 'Clear quartz', color: '#e5e3d6', note: 'Simple, luminous, and light.' } }
 };
 export const presets = {
   'Moon Woven': { ...defaults },

@@ -168,4 +168,4 @@ catch (error) {
   document.querySelector('#scene').innerHTML = '<div class="webgl-error"><h3>Your 3D preview needs WebGL.</h3><p>Try a browser with hardware acceleration enabled. You can still customize, save, and download your design choices.</p></div>';
   for (const id of ['take-photo','zoom-in','zoom-out','auto-rotate','reset-view']) document.getElementById(id).disabled = true;
 }
-window.addEventListener('pagehide', () => studio?.dispose(), { once: true });
+window.addEventListener('pagehide', event => { if (!event.persisted) studio?.dispose(); });
